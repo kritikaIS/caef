@@ -1,0 +1,28 @@
+{
+  "device_id": "pi_node_alpha",
+  "mcu_type": "RaspberryPi_4B",
+  "constraints": {
+    "max_gpio_current": "16mA",
+    "forbidden_pins": [0, 1]
+  },
+  "pinout": {
+    "GPIO_17": {
+      "connected_device": "DHT11",
+      "type": "sensor",
+      "protocol": "digital_1wire",
+      "status": "available"
+    },
+    "GPIO_27": {
+      "connected_device": "Relay_Fan",
+      "type": "actuator",
+      "active_level": "HIGH",
+      "status": "dormant"
+    },
+    "GPIO_22": {
+      "connected_device": "Lidar_X2",
+      "type": "sensor",
+      "protocol": "UART",
+      "status": "dormant"
+    }
+  }
+}

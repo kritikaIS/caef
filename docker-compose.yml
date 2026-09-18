@@ -1,0 +1,100 @@
+# Demo stack (TDD.md §1, PRD G6): one command brings up the whole pipeline plus
+# a simulated edge node, reproducible from this repo.
+#
+# Two services, not six. Listener, Distributor, Agent and Deploy are separate
+# *components* but one v0.1 process by design (TRD.md §8: in-process asyncio
+# queue behind the Distributor interface). Splitting them into containers here
+# would mean shipping a real SQS/SNS, which §7 explicitly defers. The seam that
+# matters — the Distributor interface — is in the code, not in this file.
+#
+#   docker compose up --build
+#   open http://localhost:8000
+#
+# Set SCENARIO=heat to demo Situational Morphing; LLM_API_KEY must be set (the
+# Agentic Core refuses to start without one).
+#
+# NOTE: this stack is the v0.1 `source_generation` baseline — the LLM writes a
+# whole firmware file, Guard Rail and the Docker sandbox vet it. The
+# contract-constrained pipeline does not need any of this: it has no LLM
+# requirement, no sandbox and no containers, and its demo is a single command on
+# the host:
+#
+#     python -m demo.safe_demo
+#
+# ADAPTATION_MODE is passed through below so this stack can be pointed at either
+# pipeline, but the compose path has only been exercised for the baseline.
+
+services:
+  # The Verification Sandbox image. Built once here; the server shells out to
+  # the host Docker daemon to run candidates in it (sibling containers, not
+  # nested Docker). Exits immediately — it is a build step, not a service.
+  sandbox-image:
+    image: caef-sandbox:latest
+    build:
+      context: ./server/sandbox
+      dockerfile: Dockerfile.sandbox
+    command: ["true"]
+
+  server:
+    build: .
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"   # dashboard + /poll reconciliation
+      - "9500:9500/udp"  # heartbeats
+      - "9501:9501"   # events
+    environment:
+      LISTENER_HOST: 0.0.0.0
+      API_HOST: 0.0.0.0
+      # Where the *device* listens for OTA pushes — a different container here,
+      # so it cannot be inferred from the server's own bind address.
+      DEVICE_OTA_HOST: edge-node
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/caef.db}
+      ADAPTATION_MODE: ${ADAPTATION_MODE:-source_generation}
+      # Required by the source_generation Agentic Core. The manifest pipeline's
+      # stub proposer needs no key.
+      LLM_API_KEY: ${LLM_API_KEY:?set LLM_API_KEY in .env — the Agentic Core cannot start without it}
+      # Shared HMAC key for signed OTA in manifest mode. Two containers means two
+      # processes, so an ephemeral in-memory key would not work here.
+      CAEF_OTA_HMAC_KEY: ${CAEF_OTA_HMAC_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      # The sandbox runner is inside this container but the daemon it talks to
+      # is the host's, so the repo mount it passes must be a *host* path.
+      SANDBOX_HOST_REPO: ${PWD}
+    volumes:
+      # Sibling-container execution: the sandbox runs next to this container,
+      # not inside it. The runner still applies every §3.3 confinement flag.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The repo, so the sandbox's read-only mount of the same host path sees
+      # the candidates this container stages.
+      - .:/app
+      - caef-data:/data
+
+  edge-node:
+    build: .
+    depends_on: [server]
+    # -m, not a path: running the file directly puts edge_node/ on sys.path
+    # instead of the repo root, so `import config` fails.
+    command: ["python", "-m", "edge_node.watchdog"]
+    environment:
+      LISTENER_HOST: server
+      API_HOST: server
+      DEVICE_OTA_HOST: 0.0.0.0   # the device's own bind address
+      DEVICE_ID: ${DEVICE_ID:-pi_node_alpha}
+      SCENARIO: ${SCENARIO:-normal}
+      ADAPTATION_MODE: ${ADAPTATION_MODE:-source_generation}
+      CAEF_OTA_HMAC_KEY: ${CAEF_OTA_HMAC_KEY:-}
+      # The firmware artifact lives on a volume: it is rewritten by every OTA
+      # push, and a bind-mount would rewrite the repo's baseline on the host.
+      FIRMWARE_PATH: /firmware/main.py
+    volumes:
+      - caef-firmware:/firmware
+    # The watchdog expects the artifact to exist at boot; seed it from the
+    # repo's baseline on first start only.
+    entrypoint: ["sh", "-c", "[ -f /firmware/main.py ] || cp /app/edge_node/main.py /firmware/main.py; exec \"$$@\"", "--"]
+
+volumes:
+  caef-data:
+  caef-firmware:

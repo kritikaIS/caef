@@ -1,0 +1,22 @@
+# Verification Sandbox image (TDD.md §2.6, SAFETY_PROTOCOL.md §3.1).
+#
+# Mirrors the device runtime: same Python minor version as the Pi target, and
+# the same handful of pure-Python deps the firmware imports. Nothing else — a
+# candidate that only runs because the sandbox has extra packages installed is
+# a false pass.
+FROM python:3.13-slim
+
+# Only what the firmware itself imports at runtime. No pytest, no docker, no
+# build tooling: the sandbox executes firmware, it does not develop it.
+RUN pip install --no-cache-dir "pydantic>=2.0" "python-dotenv>=1.0"
+
+# Non-root: candidate code is untrusted by definition, even post-Guard-Rail
+# (SAFETY_PROTOCOL.md §1 layer 4 assumes layer 3 may have been imperfect).
+RUN useradd --create-home --uid 10001 sandbox
+USER sandbox
+WORKDIR /caef
+
+# The runner bind-mounts the repo read-only at /caef and the candidate firmware
+# at /caef/candidate.py, then overrides the command. This default exists so a
+# bare `docker run` of the image is inert rather than surprising.
+CMD ["python", "-c", "print('caef sandbox image; no candidate mounted')"]

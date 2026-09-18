@@ -1,0 +1,25 @@
+# Core (M1+)
+sqlalchemy>=2.0
+pydantic>=2.0
+python-dotenv>=1.0
+pytest>=8.0
+pytest-asyncio>=0.24
+
+# Structured store: Supabase Postgres in deployment, SQLite offline
+psycopg[binary]>=3.2
+
+# Frontend + /poll reconciliation endpoint (M9)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Agentic Core (M6) — OpenAI-compatible endpoint, base_url from config
+langchain>=0.3
+langchain-openai>=0.2
+
+# Nothing below is required. The contract-constrained pipeline, the demo and the
+# experiment harness all run on the packages above alone.
+#
+#   matplotlib   experiments/plot_results.py, which prints how to install it and
+#                exits 0 when it is absent (plots are never required for results)
+#   mcp          server/mcp/server.py, the optional MCP binding. The tool surface
+#                in server/mcp/tools.py is plain functions and needs nothing.

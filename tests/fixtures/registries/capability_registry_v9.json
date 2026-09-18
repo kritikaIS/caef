@@ -1,0 +1,244 @@
+{
+  "capability_registry_version": "9.0.0",
+  "description": "TEST FIXTURE \u2014 a registry whose fan capability targets the temperature sensor's pin. Used to prove the hardware-type check rejects an actuator on an incompatible pin.",
+  "metrics": {
+    "temperature_c": {
+      "unit": "celsius",
+      "produced_by": "read_temperature"
+    },
+    "distance_cm": {
+      "unit": "centimetre",
+      "produced_by": "read_distance"
+    }
+  },
+  "actuators": {
+    "fan": {
+      "connected_device": "Relay_Fan",
+      "states": [
+        "on",
+        "off"
+      ],
+      "default_state": "off",
+      "safe_state_when_hot": "on"
+    }
+  },
+  "capabilities": {
+    "read_temperature": {
+      "kind": "sensor",
+      "description": "Sample the DHT11 and expose it as temperature_c.",
+      "compatible_hardware": [
+        "DHT11"
+      ],
+      "permitted_pins": [
+        17
+      ],
+      "input_type": "none",
+      "output_type": "float_celsius",
+      "metric": "temperature_c",
+      "actuator": null,
+      "resource_cost": {
+        "cpu_ms_per_step": 0.5,
+        "memory_kb": 8
+      },
+      "actuator_limits": null,
+      "template": "sensor_read",
+      "template_params": {
+        "metric": "temperature_c"
+      },
+      "safety_preconditions": [
+        "pin_present_in_hardware_schema",
+        "pin_not_forbidden",
+        "hardware_type_matches"
+      ],
+      "requires_metrics": [],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": false
+    },
+    "read_distance": {
+      "kind": "sensor",
+      "description": "Sample the Lidar_X2 and expose it as distance_cm.",
+      "compatible_hardware": [
+        "Lidar_X2"
+      ],
+      "permitted_pins": [
+        22
+      ],
+      "input_type": "none",
+      "output_type": "float_centimetre",
+      "metric": "distance_cm",
+      "actuator": null,
+      "resource_cost": {
+        "cpu_ms_per_step": 2.0,
+        "memory_kb": 16
+      },
+      "actuator_limits": null,
+      "template": "sensor_read",
+      "template_params": {
+        "metric": "distance_cm"
+      },
+      "safety_preconditions": [
+        "pin_present_in_hardware_schema",
+        "pin_not_forbidden",
+        "hardware_type_matches"
+      ],
+      "requires_metrics": [],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": false
+    },
+    "fan_on": {
+      "kind": "actuator",
+      "description": "Request the cooling fan on. Emits an intent; the supervisor applies it.",
+      "compatible_hardware": [
+        "Relay_Fan"
+      ],
+      "permitted_pins": [
+        17
+      ],
+      "input_type": "none",
+      "output_type": "actuator_intent",
+      "metric": null,
+      "actuator": "fan",
+      "resource_cost": {
+        "cpu_ms_per_step": 0.2,
+        "memory_kb": 4
+      },
+      "actuator_limits": {
+        "actuator": "fan",
+        "state": "on",
+        "current_ma": 12.0,
+        "max_transitions_per_minute": 12,
+        "min_hold_seconds": 5.0
+      },
+      "template": "actuator_set_state",
+      "template_params": {
+        "actuator": "fan",
+        "state": "on"
+      },
+      "safety_preconditions": [
+        "pin_present_in_hardware_schema",
+        "pin_not_forbidden",
+        "hardware_type_matches",
+        "actuator_declared_in_manifest",
+        "metrics_available"
+      ],
+      "requires_metrics": [
+        "temperature_c"
+      ],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": true
+    },
+    "fan_off": {
+      "kind": "actuator",
+      "description": "Request the cooling fan off. Always subordinate to the supervisor's emergency policy.",
+      "compatible_hardware": [
+        "Relay_Fan"
+      ],
+      "permitted_pins": [
+        17
+      ],
+      "input_type": "none",
+      "output_type": "actuator_intent",
+      "metric": null,
+      "actuator": "fan",
+      "resource_cost": {
+        "cpu_ms_per_step": 0.2,
+        "memory_kb": 4
+      },
+      "actuator_limits": {
+        "actuator": "fan",
+        "state": "off",
+        "current_ma": 0.0,
+        "max_transitions_per_minute": 12,
+        "min_hold_seconds": 5.0
+      },
+      "template": "actuator_set_state",
+      "template_params": {
+        "actuator": "fan",
+        "state": "off"
+      },
+      "safety_preconditions": [
+        "pin_present_in_hardware_schema",
+        "pin_not_forbidden",
+        "hardware_type_matches",
+        "actuator_declared_in_manifest",
+        "metrics_available"
+      ],
+      "requires_metrics": [
+        "temperature_c"
+      ],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": false
+    },
+    "emit_heartbeat": {
+      "kind": "telemetry",
+      "description": "Emit a liveness beat each control step. The supervisor counts misses.",
+      "compatible_hardware": [],
+      "permitted_pins": [],
+      "input_type": "none",
+      "output_type": "telemetry_intent",
+      "metric": null,
+      "actuator": null,
+      "resource_cost": {
+        "cpu_ms_per_step": 0.1,
+        "memory_kb": 2
+      },
+      "actuator_limits": null,
+      "template": "telemetry_emit",
+      "template_params": {
+        "event": "HEARTBEAT",
+        "trigger_type": "CONTEXT_TRIGGER"
+      },
+      "safety_preconditions": [],
+      "requires_metrics": [],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": false
+    },
+    "emit_critical_event": {
+      "kind": "telemetry",
+      "description": "Report a critical condition upstream. Never a substitute for local action.",
+      "compatible_hardware": [],
+      "permitted_pins": [],
+      "input_type": "none",
+      "output_type": "telemetry_intent",
+      "metric": null,
+      "actuator": null,
+      "resource_cost": {
+        "cpu_ms_per_step": 0.1,
+        "memory_kb": 2
+      },
+      "actuator_limits": null,
+      "template": "telemetry_emit",
+      "template_params": {
+        "event": "CRITICAL_TEMPERATURE",
+        "trigger_type": "CRITICAL_FAILURE"
+      },
+      "safety_preconditions": [],
+      "requires_metrics": [
+        "temperature_c"
+      ],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": false
+    },
+    "enter_safe_idle": {
+      "kind": "safety",
+      "description": "Hand control back to the supervisor's deterministic safe state. For the thermal prototype that state keeps cooling on while the device is hot.",
+      "compatible_hardware": [],
+      "permitted_pins": [],
+      "input_type": "reason_string",
+      "output_type": "safety_intent",
+      "metric": null,
+      "actuator": null,
+      "resource_cost": {
+        "cpu_ms_per_step": 0.1,
+        "memory_kb": 2
+      },
+      "actuator_limits": null,
+      "template": "safe_idle",
+      "template_params": {},
+      "safety_preconditions": [],
+      "requires_metrics": [],
+      "safe_fallback": "enter_safe_idle",
+      "is_fallback_safe": true
+    }
+  }
+}

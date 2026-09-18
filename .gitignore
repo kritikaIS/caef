@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+caef.db
+caef_rag.db
+firmware_store/
+.sandbox/
+.pytest_cache/
+smoke.db
+results/
